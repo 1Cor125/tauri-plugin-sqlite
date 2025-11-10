@@ -110,8 +110,8 @@ queries.
    is released via `WriteGuard` drop.
 
 5. **Connection Management**:
-   * Read pool: max 6 concurrent connections, min 0 cached
-   * Write pool: max 1 connection, min 0 cached
+   * Read pool: max 6 concurrent connections, 0 cached
+   * Write pool: max 1 connection, 0 cached
    * Idle timeout: 30 seconds for both pools
    * No perpetual caching to minimize idle thread overhead
 

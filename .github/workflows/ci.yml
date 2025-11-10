@@ -16,6 +16,8 @@ jobs:
       steps:
          - name: Checkout repository
            uses: actions/checkout@v4
+           with:
+              fetch-depth: 0
 
          - name: Setup Node.js
            uses: actions/setup-node@v4
@@ -40,6 +42,9 @@ jobs:
 
          - name: Run standards checks
            run: npm run standards
+           env:
+              # For PRs: lint from base branch. For pushes: lint from previous commit
+              COMMITLINT_FROM: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
 
          - name: Run cargo check
            run: cargo check --workspace --all-targets

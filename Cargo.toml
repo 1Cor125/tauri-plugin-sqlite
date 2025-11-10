@@ -1,5 +1,5 @@
 [workspace]
-resolver = "2"
+resolver = "3"
 members = [
    "crates/sqlx-sqlite-conn-mgr",
 ]
@@ -15,8 +15,8 @@ links = "tauri-plugin-sqlite"
 
 [dependencies]
 tauri = "2.5.1"
-serde = { version = "1", features = ["derive"] }
-thiserror = "1"
+serde = { version = "1.0.228", features = ["derive"] }
+thiserror = "2.0.17"
 
 [build-dependencies]
 tauri-plugin = { version = "2.5.1", features = ["build"] }
