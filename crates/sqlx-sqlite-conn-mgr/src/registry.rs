@@ -106,6 +106,7 @@ fn canonicalize_path(path: &Path) -> std::io::Result<PathBuf> {
          let filename = path
             .file_name()
             .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidInput, "Invalid path"))?;
+
          let canonical_parent = parent.canonicalize()?;
 
          // Note: We preserve the filename case as provided. On case-insensitive

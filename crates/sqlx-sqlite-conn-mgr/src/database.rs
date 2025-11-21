@@ -13,9 +13,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 /// SQLite database with connection pooling for concurrent reads and optional exclusive writes.
 ///
-/// The database is opened in read-write mode but can be used for read-only operations
-/// by calling `read_pool()`. Write operations are available by calling `acquire_writer()`
-/// which lazily initializes WAL mode on first use.
+/// Once the database is opened, it can be used for read-only operations by calling `read_pool()`.
+/// Write operations are available by calling `acquire_writer()` which lazily initializes WAL
+/// mode on first use.
 ///
 /// # Example
 ///
@@ -66,7 +66,7 @@ impl SqliteDatabase {
    /// If the database is already connected, returns the existing connection.
    /// Multiple calls with the same path will return the same database instance.
    ///
-   /// The database is created if it doesn't exist. WAL mode is optionally enabled when
+   /// The database is created if it doesn't exist. WAL mode is enabled when
    /// `acquire_writer()` is first called.
    ///
    /// # Arguments
@@ -174,7 +174,7 @@ impl SqliteDatabase {
       .await
    }
 
-   /// Get a reference to the connection pool for executing SELECT queries
+   /// Get a reference to the connection pool for executing read queries
    ///
    /// Use this for concurrent read operations. Multiple readers can access
    /// the pool simultaneously.
@@ -370,6 +370,7 @@ mod tests {
                .fetch_one(db.read_pool().unwrap())
                .await
                .unwrap();
+
             assert_eq!(count, 12);
          }));
       }

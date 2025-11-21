@@ -139,8 +139,8 @@ queries.
 
 3. **WAL Mode**: WAL (Write-Ahead Logging) mode is automatically enabled
    on the first call to `acquire_writer()` per `SqliteDatabase` instance.
-   The operation is idempotent and safe to call across multiple sessions,
-   allowing concurrent reads during writes.
+   The operation is idempotent and safe to call across multiple sessions.
+   WAL mode allows concurrent reads during writes.
 
 4. **Exclusive Writes**: The write pool has `max_connections=1`, ensuring
    only one writer can exist at a time. Other callers to
