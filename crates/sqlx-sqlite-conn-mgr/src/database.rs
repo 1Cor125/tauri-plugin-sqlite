@@ -242,6 +242,11 @@ impl SqliteDatabase {
             .execute(&mut *conn)
             .await?;
 
+         // https://www.sqlite.org/wal.html#performance_considerations
+         sqlx::query("PRAGMA synchronous = NORMAL")
+            .execute(&mut *conn)
+            .await?;
+
          self.wal_initialized.store(true, Ordering::SeqCst);
       }
 
@@ -561,6 +566,17 @@ mod tests {
          mode.to_lowercase(),
          "wal",
          "Journal mode should be WAL after first acquire_writer"
+      );
+
+      // Check sync setting
+      let (sync,): (i32,) = sqlx::query_as("PRAGMA synchronous")
+         .fetch_one(&mut *writer)
+         .await
+         .unwrap();
+
+      assert_eq!(
+         sync, 1,
+         "Sync mode should be NORMAL after first acquire_writer"
       );
 
       drop(writer);
