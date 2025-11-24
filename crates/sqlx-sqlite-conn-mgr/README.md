@@ -142,6 +142,32 @@ queries.
    The operation is idempotent and safe to call across multiple sessions,
    allowing concurrent reads during writes.
 
+   **Synchronous Mode: NORMAL vs FULL**
+
+   When WAL mode is enabled, this library sets `PRAGMA synchronous = NORMAL`
+   instead of `FULL` for the following reasons:
+
+   * **Performance**: `NORMAL` provides significantly better write performance
+     (up to 2-3x faster) by reducing the number of fsync operations. With `FULL`,
+     SQLite syncs after every checkpoint; with `NORMAL`, it syncs only the WAL file.
+
+   * **Safety in WAL mode**: `NORMAL` is safe in WAL mode because:
+      * WAL transactions are atomic and durable at the WAL file level
+      * The database file itself can be checkpointed asynchronously
+      * A crash may corrupt the database file, but the WAL file remains intact
+        and will be used to recover on next open
+      * This is different from rollback journal mode where `NORMAL` could cause
+        corruption
+
+   * **Mobile/Desktop Context**: For typical desktop and mobile applications,
+     `NORMAL` provides the best balance of performance and safety. `FULL` is
+     primarily needed for scenarios with unreliable storage hardware or when
+     power loss can occur mid-fsync operation.
+
+   See [SQLite WAL Performance Considerations][wal-perf] for more details.
+
+   [wal-perf]: https://www.sqlite.org/wal.html#performance_considerations
+
 4. **Exclusive Writes**: The write pool has `max_connections=1`, ensuring
    only one writer can exist at a time. Other callers to
    `acquire_writer()` will block (asynchronously) until the current writer
@@ -153,6 +179,14 @@ queries.
    * Minimum connections: 0 (no perpetual caching)
    * Idle timeout: 30 seconds by default (configurable via `custom_config`)
    * Only customize `SqliteDatabaseConfig` when defaults don't meet your needs
+
+## Tracing and Logging
+
+This crate uses the [`tracing`](https://crates.io/crates/tracing) ecosystem for internal
+instrumentation. It is built with the `release_max_level_off` feature so that all
+`tracing` log statements are compiled out of release builds. To see its logs during
+development, the host application must install a `tracing-subscriber` and enable the
+desired log level; no extra configuration is required in this crate.
 
 ## Error Handling
 
