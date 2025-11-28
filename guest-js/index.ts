@@ -212,74 +212,44 @@ export default class Database {
    }
 
    /**
-    * **beginTransaction**
+    * **executeTransaction**
     *
-    * Begins a new database transaction. All subsequent operations will be
-    * part of this transaction until `commitTransaction()` or `rollbackTransaction()`
-    * is called.
+    * Executes multiple statements atomically within a transaction.
+    * All statements either succeed together or fail together.
     *
-    * Transactions provide atomicity - either all operations succeed or all are rolled back.
+    * The function automatically:
+    * - Begins a transaction (BEGIN)
+    * - Executes all statements in order
+    * - Commits on success (COMMIT)
+    * - Rolls back on any error (ROLLBACK)
     *
-    * @example
-    * ```ts
-    * await db.beginTransaction();
-    * try {
-    *    await db.execute('INSERT INTO users (name) VALUES ($1)', ['Alice']);
-    *    await db.execute('INSERT INTO logs (action) VALUES ($1)', ['user_created']);
-    *    await db.commitTransaction();
-    * } catch (error) {
-    *    await db.rollbackTransaction();
-    *    throw error;
-    * }
-    * ```
-    */
-   async beginTransaction(): Promise<void> {
-      await invoke('plugin:sqlite|begin_transaction', {
-         db: this.path
-      })
-   }
-
-   /**
-    * **commitTransaction**
-    *
-    * Commits the current transaction, making all changes permanent.
+    * @param statements - Array of [query, values?] tuples to execute
+    * @returns Promise that resolves when all statements complete successfully
+    * @throws SqliteError if any statement fails (after rollback)
     *
     * @example
     * ```ts
-    * await db.beginTransaction();
-    * await db.execute('INSERT INTO users (name) VALUES ($1)', ['Alice']);
-    * await db.execute('INSERT INTO logs (action) VALUES ($1)', ['user_created']);
-    * await db.commitTransaction();
+    * // Execute multiple inserts atomically
+    * await db.executeTransaction([
+    *    ['INSERT INTO users (name, email) VALUES ($1, $2)', ['Alice', 'alice@example.com']],
+    *    ['INSERT INTO audit_log (action, user) VALUES ($1, $2)', ['user_created', 'Alice']]
+    * ]);
+    *
+    * // Mixed operations
+    * await db.executeTransaction([
+    *    ['UPDATE accounts SET balance = balance - $1 WHERE id = $2', [100, 1]],
+    *    ['UPDATE accounts SET balance = balance + $1 WHERE id = $2', [100, 2]],
+    *    ['INSERT INTO transfers (from_id, to_id, amount) VALUES ($1, $2, $3)', [1, 2, 100]]
+    * ]);
     * ```
     */
-   async commitTransaction(): Promise<void> {
-      await invoke('plugin:sqlite|commit_transaction', {
-         db: this.path
-      })
-   }
-
-   /**
-    * **rollbackTransaction**
-    *
-    * Rolls back the current transaction, discarding all changes made since
-    * `beginTransaction()` was called.
-    *
-    * @example
-    * ```ts
-    * await db.beginTransaction();
-    * try {
-    *    await db.execute('INSERT INTO users (name) VALUES ($1)', ['Alice']);
-    *    await db.execute('INSERT INTO logs (action) VALUES ($1)', ['user_created']);
-    *    await db.commitTransaction();
-    * } catch (error) {
-    *    await db.rollbackTransaction();
-    *    throw error;
-    * }
-    * ```
-    */
-   async rollbackTransaction(): Promise<void> {
-      await invoke('plugin:sqlite|rollback_transaction', {
-         db: this.path
+   async executeTransaction(statements: Array<[string, SqlValue[]?]>): Promise<void> {
+      await invoke('plugin:sqlite|execute_transaction', {
+         db: this.path,
+         statements: statements.map(([query, values]) => ({
+            query,
+            values: values ?? []
+         }))
       })
    }
 

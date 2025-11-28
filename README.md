@@ -304,45 +304,32 @@ if (user) {
 
 ### Using Transactions
 
-Transactions ensure that multiple operations either all succeed or all fail together,
-maintaining data consistency:
+Execute multiple database operations atomically using `executeTransaction()`. All
+statements either succeed together or fail together, maintaining data consistency:
 
 ```typescript
-// Begin a transaction
-await db.beginTransaction();
+// Execute multiple inserts atomically
+await db.executeTransaction([
+   ['INSERT INTO users (name, email) VALUES ($1, $2)', ['Alice', 'alice@example.com']],
+   ['INSERT INTO audit_log (action, user) VALUES ($1, $2)', ['user_created', 'Alice']]
+]);
 
-try {
-   // Execute multiple operations atomically
-   await db.execute(
-      'INSERT INTO users (name, email) VALUES ($1, $2)',
-      ['Alice', 'alice@example.com']
-   );
-
-   await db.execute(
-      'INSERT INTO audit_log (action, user) VALUES ($1, $2)',
-      ['user_created', 'Alice']
-   );
-
-   // Commit if all operations succeed
-   await db.commitTransaction();
-   console.log('Transaction completed successfully');
-
-} catch (error) {
-   // Rollback if any operation fails
-   await db.rollbackTransaction();
-   console.error('Transaction failed, rolled back:', error);
-   throw error;
-}
+// Bank transfer example - all operations succeed or all fail
+await db.executeTransaction([
+   ['UPDATE accounts SET balance = balance - $1 WHERE id = $2', [100, 1]],
+   ['UPDATE accounts SET balance = balance + $1 WHERE id = $2', [100, 2]],
+   ['INSERT INTO transfers (from_id, to_id, amount) VALUES ($1, $2, $3)', [1, 2, 100]]
+]);
 ```
 
-**Important Notes:**
+**How it works:**
 
-   * All operations between `beginTransaction()` and
-     `commitTransaction()`/`rollbackTransaction()` are executed as a single atomic unit
-   * If an error occurs, call `rollbackTransaction()` to discard all changes
-   * Nested transactions are not supported
-   * Always ensure transactions are either committed or rolled back to avoid locking
-     issues
+   * Automatically executes `BEGIN` before running statements
+   * Executes all statements in order
+   * Commits with `COMMIT` if all statements succeed
+   * Rolls back with `ROLLBACK` if any statement fails
+   * The write connection is held for the entire transaction, ensuring atomicity
+   * Errors are thrown after rollback, preserving the original error message
 
 ### Closing Connections
 
