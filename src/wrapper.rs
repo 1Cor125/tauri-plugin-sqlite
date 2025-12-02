@@ -38,8 +38,19 @@ impl DatabaseWrapper {
       // Resolve path relative to app_config_dir
       let abs_path = resolve_database_path(path, app)?;
 
+      Self::connect_with_path(&abs_path, custom_config).await
+   }
+
+   /// Connect to a SQLite database with an absolute path.
+   ///
+   /// This is the core connection method used by `connect()`. It's also
+   /// exposed for testing purposes where we don't have a Tauri AppHandle.
+   pub async fn connect_with_path(
+      abs_path: &std::path::Path,
+      custom_config: Option<SqliteDatabaseConfig>,
+   ) -> Result<Self, Error> {
       // Use connection manager to connect with optional custom config
-      let db = SqliteDatabase::connect(&abs_path, custom_config).await?;
+      let db = SqliteDatabase::connect(abs_path, custom_config).await?;
 
       Ok(Self { inner: db })
    }

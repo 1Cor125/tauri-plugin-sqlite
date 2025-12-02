@@ -22,9 +22,15 @@
       "check-node-version": "check-node-version --npm 10.5.0",
       "commitlint": "commitlint --from ${COMMITLINT_FROM:-002bcc8} --to ${COMMITLINT_TO:-HEAD}",
       "markdownlint": "markdownlint-cli2",
+      "standards": "npm run markdownlint && npm run rust:lint && npm run commitlint",
       "rust:lint": "cargo lint-clippy && cargo lint-fmt",
       "rust:lint:fix": "cargo fix-clippy && cargo fix-fmt",
-      "standards": "npm run markdownlint && npm run rust:lint && npm run commitlint"
+      "test": "vitest run && cargo test --workspace --lib --test '*'",
+      "test:rust": "cargo test --workspace --lib --test '*'",
+      "test:rust:unit": "cargo test --workspace --lib",
+      "test:rust:integration": "cargo test --workspace --test '*'",
+      "test:ts": "vitest run",
+      "test:watch": "vitest"
    },
    "author": "Jeremy Thomerson",
    "license": "MIT",
@@ -38,9 +44,11 @@
       "@rollup/plugin-typescript": "12.3.0",
       "@silvermine/standardization": "2.2.3",
       "@tauri-apps/api": "2.9.0",
+      "jsdom": "26.1.0",
       "rollup": "4.53.3",
       "tslib": "2.8.1",
-      "typescript": "5.8.3"
+      "typescript": "5.8.3",
+      "vitest": "3.2.3"
    },
    "peerDependencies": {
       "@tauri-apps/api": "2.9.0"
