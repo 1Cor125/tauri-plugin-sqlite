@@ -1,7 +1,9 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
-use tauri::{Manager, Runtime, plugin::Builder as PluginBuilder};
+use tauri::{Manager, RunEvent, Runtime, plugin::Builder as PluginBuilder};
 use tokio::sync::RwLock;
+use tracing::{debug, error, info, warn};
 
 mod commands;
 mod decode;
@@ -15,8 +17,8 @@ pub use wrapper::{DatabaseWrapper, WriteQueryResult};
 ///
 /// This struct maintains a thread-safe map of database paths to their corresponding
 /// connection wrappers.
-#[derive(Default)]
-pub struct DbInstances(pub RwLock<HashMap<String, DatabaseWrapper>>);
+#[derive(Clone, Default)]
+pub struct DbInstances(pub Arc<RwLock<HashMap<String, DatabaseWrapper>>>);
 
 /// Builder for the SQLite plugin.
 ///
@@ -57,9 +59,98 @@ impl Builder {
          ])
          .setup(|app, _api| {
             app.manage(DbInstances::default());
+            debug!("SQLite plugin initialized");
             // Future PR: Possibly handle migrations here
-            // Future PR: Cleanup on app exit
             Ok(())
+         })
+         .on_event(|app, event| {
+            match event {
+               RunEvent::ExitRequested { api, code, .. } => {
+                  info!("App exit requested (code: {:?}) - closing databases before exit", code);
+
+                  // Prevent immediate exit so we can close connections and checkpoint WAL
+                  api.prevent_exit();
+
+                  let app_handle = app.clone();
+
+                  let handle = match tokio::runtime::Handle::try_current() {
+                     Ok(h) => h,
+                     Err(_) => {
+                        warn!("No tokio runtime available for database cleanup");
+                        app_handle.exit(code.unwrap_or(0));
+                        return;
+                     }
+                  };
+
+                  let instances = app.state::<DbInstances>().inner().clone();
+
+                  // Spawn a blocking thread to close databases
+                  // (block_in_place panics on current_thread runtime)
+                  let cleanup_result = std::thread::spawn(move || {
+                     handle.block_on(async {
+                        let mut guard = instances.0.write().await;
+                        let wrappers: Vec<DatabaseWrapper> =
+                           guard.drain().map(|(_, v)| v).collect();
+
+                        // Close databases in parallel with timeout
+                        let mut set = tokio::task::JoinSet::new();
+                        for wrapper in wrappers {
+                           set.spawn(async move { wrapper.close().await });
+                        }
+
+                        let timeout_result = tokio::time::timeout(
+                           std::time::Duration::from_secs(5),
+                           async {
+                              while let Some(result) = set.join_next().await {
+                                 match result {
+                                    Ok(Err(e)) => warn!("Error closing database: {:?}", e),
+                                    Err(e) => warn!("Database close task panicked: {:?}", e),
+                                    Ok(Ok(())) => {}
+                                 }
+                              }
+                           },
+                        )
+                        .await;
+
+                        if timeout_result.is_err() {
+                           warn!("Database cleanup timed out after 5 seconds");
+                        } else {
+                           debug!("Database cleanup complete");
+                        }
+                     })
+                  })
+                  .join();
+
+                  if let Err(e) = cleanup_result {
+                     error!("Database cleanup thread panicked: {:?}", e);
+                  }
+
+                  app_handle.exit(code.unwrap_or(0));
+               }
+               RunEvent::Exit => {
+                  // ExitRequested should have already closed all databases
+                  // This is just a safety check
+                  let instances = app.state::<DbInstances>();
+                  match instances.0.try_read() {
+                     Ok(guard) => {
+                        if !guard.is_empty() {
+                           warn!(
+                              "Exit event fired with {} database(s) still open - cleanup may have been skipped",
+                              guard.len()
+                           );
+                        } else {
+                           debug!("Exit event: all databases already closed");
+                        }
+                     }
+                     Err(_) => {
+                        warn!("Exit event: could not check database state (lock held - cleanup may still be in progress)");
+                     }
+                  }
+               }
+               _ => {
+                  // Other events don't require action
+               }
+            }
          })
          .build()
    }
