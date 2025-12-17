@@ -15,7 +15,7 @@ SQLite database interface for Tauri applications using
      even while writing (configurable pool size and idle timeouts)
    * **Write Serialization**: Exclusive write connection
 
-     > Wait! Why? From [SQLite docs](https://sqlite.org/whentouse.html):
+     > From [SQLite docs](https://sqlite.org/whentouse.html):
      > "_SQLite ... will only allow one writer at any instant in time._"
    * **WAL Mode**: Enabled automatically on first write operation
    * **Type Safety**: Full TypeScript bindings
