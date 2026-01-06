@@ -379,8 +379,8 @@ To see logs during development:
 
 ```toml
 [dependencies]
-tracing = { version = "0.1.x", default-features = false, features = ["std", "release_max_level_off"] }
-tracing-subscriber = { version = "0.3.x", features = ["fmt", "env-filter"] }
+tracing = { version = "0.1.41", default-features = false, features = ["std", "release_max_level_off"] }
+tracing-subscriber = { version = "0.3.20", features = ["fmt", "env-filter"] }
 ```
 
 ```rust
